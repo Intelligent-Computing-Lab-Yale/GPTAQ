@@ -9,7 +9,7 @@
 We recommend installing the python envrionments with original codebase's requirements:
 
 ```bash
-conda create -n 
+conda create -n quarot python=3.9
 pip install -r requirements.txt
 ```
 Additionally, to apply Hadamard transformation, build [fast-hadamard-transform](https://github.com/Dao-AILab/fast-hadamard-transform) package from source.
@@ -17,8 +17,8 @@ Additionally, to apply Hadamard transformation, build [fast-hadamard-transform](
   
 ## Language Generation and Zero-Shot Evaluations  
   
-Currently, this code supports **LLaMa-2 and LLaMA-3** models.  
-You can simply run the `main.py` to reproduce the results in the paper. The most important arguments are:  
+Currently, this code supports **LLaMa-2 and LLaMA-3** models (We did not test OPT and LLaMA-1).  
+You can simply run the `main.py` to reproduce the results in the paper. The important arguments are:  
   
 - `--model`: the model name (or path to the weights)  
 - `--bsz`: the batch size for PPL evaluation  
