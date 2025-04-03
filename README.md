@@ -23,7 +23,22 @@ We provide several directories to reproduce the paper results.
 [//]: # (4. **GPTQModel**, a forked version of GPTQModel to support GPTQv2 to deploy weight-only quantization model  )
   
 We recommend use separate envrionments for different experiments to ensure results are matched.   
-  
+
+## Acknowledgement
+
+Our code is built upon several repository:
+
+[https://github.com/IST-DASLab/gptq](https://github.com/IST-DASLab/gptq)
+
+[https://github.com/spcl/QuaRot](https://github.com/spcl/QuaRot)
+
+[https://github.com/facebookresearch/SpinQuant/tree/main](https://github.com/facebookresearch/SpinQuant/tree/main)
+
+
+## Contact
+
+Yuhang Li (*yuhang.li@yale.edu*)
+
 ## Citations  
   
 If you find GPTQv2 useful, please consider giving a star and citation:  
