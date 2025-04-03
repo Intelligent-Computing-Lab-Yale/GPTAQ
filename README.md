@@ -16,10 +16,11 @@ Unlike the previous GPTQ method, which independently calibrates each layer, we a
   
 We provide several directories to reproduce the paper results.   
   
-1. **fake_quant** for reproducing QuaRot+GPTQ/GPTQv2   
-2. **spinquant** for reproducing SpinQuant+GPTQ/GPTQv2  
-3. **vit_quant** for reproducing vision transformer quantization results  
-4. **GPTQModel**, a forked version of GPTQModel to support GPTQv2 to deploy weight-only quantization model  
+1. [**fake_quant**](./fake_quant) for reproducing QuaRot+GPTQ/GPTQv2   
+2. [**spinquant**](./spinquant) for reproducing SpinQuant+GPTQ/GPTQv2  
+3. [**vit_quant**](./vit_quant) for reproducing vision transformer quantization results  
+
+[//]: # (4. **GPTQModel**, a forked version of GPTQModel to support GPTQv2 to deploy weight-only quantization model  )
   
 We recommend use separate envrionments for different experiments to ensure results are matched.   
   
