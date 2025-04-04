@@ -10,6 +10,7 @@ We recommend installing the python envrionments with original codebase's require
 
 ```bash
 conda create -n quarot python=3.9
+conda activate quarot
 pip install -r requirements.txt
 ```
 Additionally, to apply Hadamard transformation, build [fast-hadamard-transform](https://github.com/Dao-AILab/fast-hadamard-transform) package from source.
