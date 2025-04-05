@@ -35,6 +35,9 @@ Our code is built upon several repository:
 [https://github.com/facebookresearch/SpinQuant/tree/main](https://github.com/facebookresearch/SpinQuant/tree/main)
 
 
+## Star Histroy
+[![Star History Chart](https://api.star-history.com/svg?repos=Intelligent-Computing-Lab-Yale/GPTQv2&type=Date)](https://star-history.com/#Intelligent-Computing-Lab-Yale/GPTQv2)
+
 ## Contact
 
 Yuhang Li (*yuhang.li@yale.edu*)
@@ -43,4 +46,10 @@ Yuhang Li (*yuhang.li@yale.edu*)
   
 If you find GPTQv2 useful, please consider giving a star and citation:  
 ```bibtex  
+@article{li2025gptqv2,
+      title={GPTQv2: Efficient Finetuning-Free Quantization for Asymmetric Calibration}, 
+      author={Yuhang Li and Ruokai Yin and Donghyun Lee and Shiting Xiao and Priyadarshini Panda},
+      year={2025},
+      journal={arXiv preprint arXiv:2504.02692},
+}
 ```
