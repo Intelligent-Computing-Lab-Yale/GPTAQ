@@ -5,6 +5,7 @@ import torch
 import torch.nn as nn
 import utils
 import quant_utils
+import model_utils
 import logging
 import functools
 
@@ -85,9 +86,8 @@ class GPTQv2:
         Hinv = torch.cholesky_inverse(Hinv)
         Hinv = torch.linalg.cholesky(Hinv, upper=True)
 
-        mask = torch.ones_like(Hinv).triu_(diagonal=1)
         # scale it by alpha due to collection of dXXT axnd H
-        P = alpha * ((self.dXXT @ Hinv.T) * mask) @ Hinv
+        P = alpha * ((self.dXXT @ Hinv.T).triu_(diagonal=1)) @ Hinv
         del self.dXXT
 
         for i1 in range(0, self.columns, blocksize):
@@ -147,42 +147,6 @@ class GPTQv2:
         self.dXXT = None
         torch.cuda.empty_cache()
         utils.cleanup_memory(verbos=False)
-
-
-class FPInputsCache:
-    """
-    class for saving the full-precision output in each layer.
-    """
-    def __init__(self, sequential):
-        self.fp_cache = {}
-        self.names = sequential[0]+sequential[1]+sequential[2]+sequential[3]
-        for name in self.names:
-            self.fp_cache[name] = []
-        self.handles = []
-
-    def cache_fp_input(self, m, inp, out, name):
-        inp = inp[0].detach()
-        if len(inp.shape) == 3:
-            inp = inp.reshape((-1, inp.shape[-1]))
-        self.fp_cache[name] += [inp.t()]
-
-    def add_hook(self, full):
-        for name in self.names:
-            self.handles.append(
-                full[name].register_forward_hook(
-                    functools.partial(self.cache_fp_input, name=name)
-                )
-            )
-
-    def clear_hook(self):
-        for h in self.handles:
-            h.remove()
-        self.handles = []
-        torch.cuda.empty_cache()
-
-    def clear_cache(self):
-        for name in self.names:
-            self.fp_cache[name] = []
 
 
 @torch.no_grad()
@@ -248,7 +212,7 @@ def gptqv2_fwrd(model, dataloader, dev, args):
         ['mlp.down_proj.module']
     ]
 
-    fp_inputs_cache = FPInputsCache(sequential)
+    fp_inputs_cache = model_utils.FPInputsCache(sequential)
     fp_inps = inps.clone()
 
     for i in range(len(layers)):

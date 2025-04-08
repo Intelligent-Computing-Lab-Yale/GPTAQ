@@ -4,6 +4,7 @@ import transformers
 import utils
 import os
 import logging
+import functools
 
 OPT_MODEL = transformers.models.opt.modeling_opt.OPTForCausalLM
 OPT_LAYER = transformers.models.opt.modeling_opt.OPTDecoderLayer
@@ -182,8 +183,45 @@ class RMSN(torch.nn.Module):
         return x.to(input_dtype)
 
 
+class FPInputsCache:
+    """
+    class for saving the full-precision output in each layer.
+    """
+    def __init__(self, sequential):
+        self.fp_cache = {}
+        self.names = sequential[0]+sequential[1]+sequential[2]+sequential[3]
+        for name in self.names:
+            self.fp_cache[name] = []
+        self.handles = []
+
+    def cache_fp_input(self, m, inp, out, name):
+        inp = inp[0].detach()
+        if len(inp.shape) == 3:
+            inp = inp.reshape((-1, inp.shape[-1]))
+        self.fp_cache[name] += [inp.t()]
+
+    def add_hook(self, full):
+        for name in self.names:
+            self.handles.append(
+                full[name].register_forward_hook(
+                    functools.partial(self.cache_fp_input, name=name)
+                )
+            )
+
+    def clear_hook(self):
+        for h in self.handles:
+            h.remove()
+        self.handles = []
+        torch.cuda.empty_cache()
+
+    def clear_cache(self):
+        for name in self.names:
+            self.fp_cache[name] = []
+
+
 def get_layer_io_save_path(args):
     return os.path.join(args.save_path, 'layer_io', f'{args.layer_idx:03d}.pt')
+
 
 def capture_layer_io(model_type, layer, layer_input):
     def hook_factory(module_name, captured_vals, is_input):

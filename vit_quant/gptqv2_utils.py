@@ -90,9 +90,8 @@ class GPTQv2:
         Hinv = torch.cholesky_inverse(Hinv)
         Hinv = torch.linalg.cholesky(Hinv, upper=True)
 
-        mask = torch.ones_like(Hinv).triu_(diagonal=1)
         alpha = 0.25
-        P = alpha * ((self.dXXT @ Hinv.T) * mask) @ Hinv
+        P = alpha * ((self.dXXT @ Hinv.T).triu(diagonal=1)) @ Hinv
         del self.dXXT
 
         for i1 in range(0, self.columns, blocksize):
