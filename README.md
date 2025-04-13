@@ -29,8 +29,8 @@ Quantize LLaMA3.1-8B-Instruct
 from datasets import load_dataset
 from gptqmodel import GPTQModel, QuantizeConfig
 
-model_id = "meta-llama/Llama-3.2-8B-Instruct"
-quant_path = "Llama-3.2-8B-Instruct-gptqmodel-4bit"
+model_id = "meta-llama/Llama-3.1-8B-Instruct"
+quant_path = "Llama-3.1-8B-Instruct-gptqmodel-4bit"
 
 calibration_dataset = load_dataset(
     "allenai/c4",
