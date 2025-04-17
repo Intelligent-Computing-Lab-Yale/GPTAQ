@@ -26,43 +26,109 @@ pip install -v gptqmodel --no-build-isolation
 Quantize LLaMA3.1-8B-Instruct
 
 ```python
+import tempfile
+
 from datasets import load_dataset
 from gptqmodel import GPTQModel, QuantizeConfig
+from gptqmodel.quantization import FORMAT
+from gptqmodel.utils.eval import EVAL
+from logbar import LogBar
 
-model_id = "meta-llama/Llama-3.1-8B-Instruct"
-quant_path = "Llama-3.1-8B-Instruct-gptqmodel-4bit"
+log = LogBar.shared()
 
-calibration_dataset = load_dataset(
-    "allenai/c4",
-    data_files="en/c4-train.00001-of-01024.json.gz",
-    split="train"
-  ).select(range(256))["text"]
+MODEL_ID = "meta-llama/Llama-3.1-8B-Instruct"
+CFG_BITS = 4
+CFG_GROUPSIZE = 128
+CFG_V2 = True
+INPUTS_MAX_LENGTH = 2048 # in tokens
+QUANT_SAVE_PATH = f"/your_path/gptq_v2_{CFG_V2}_bit_{CFG_BITS}_gpsize_{CFG_GROUPSIZE}_llama_3.1_8B_Instruct"
 
-# Use GPTQv2 by passing v2=True
-quant_config = QuantizeConfig(bits=4, group_size=128, v2=True)   
+def get_calib_data(tokenizer, rows: int):
 
-model = GPTQModel.load(model_id, quant_config)
+    calibration_dataset = load_dataset(
+        "json",
+        data_files="/your_path/dataset/c4-train.00000-of-01024.json.gz",
+        split="train")
 
-# increase `batch_size` to match gpu/vram specs to speed up quantization
-model.quantize(calibration_dataset, batch_size=2)
+    datas = []
+    for index, sample in enumerate(calibration_dataset):
+        tokenized = tokenizer(sample["text"])
+        if len(tokenized.data['input_ids']) <= INPUTS_MAX_LENGTH:
+            datas.append(tokenized)
+            if len(datas) >= rows:
+                break
 
-model.save(quant_path)
+    return datas
 
-# test post-quant inference
-model = GPTQModel.load(quant_path)
-result = model.generate("Uncovering deep insights begins with")[0] # tokens
-print(model.tokenizer.decode(result)) # string output
+quant_config = QuantizeConfig(
+    bits=CFG_BITS,
+    group_size=CFG_GROUPSIZE,
+    format=FORMAT.GPTQ,
+    desc_act=True,
+    sym=True,
+    v2=CFG_V2,
+)
+
+log.info(f"QuantConfig: {quant_config}")
+log.info(f"Save Path: {QUANT_SAVE_PATH}")
+
+# load un-quantized native model
+model = GPTQModel.load(MODEL_ID, quant_config)
+
+# load calibration data
+calibration_dataset = get_calib_data(tokenizer=model.tokenizer, rows=256)
+
+model.quantize(calibration_dataset, batch_size=1)
+
+model.save(QUANT_SAVE_PATH)
+log.info(f"Quant Model Saved to: {QUANT_SAVE_PATH}")
+```
+
+Evaluation on Arc_challenge and GSM8K:
+
+```python
+# eval
+from lm_eval.tasks import TaskManager
+from lm_eval.utils import make_table
+
+with tempfile.TemporaryDirectory() as tmp_dir:
+    results = GPTQModel.eval(
+        QUANT_SAVE_PATH,
+        tasks=[EVAL.LM_EVAL.ARC_CHALLENGE, EVAL.LM_EVAL.GSM8K_PLATINUM_COT],
+        apply_chat_template=True,
+        random_seed=898,
+        output_path= tmp_dir,
+    )
+
+    print(make_table(results))
+    if "groups" in results:
+        print(make_table(results, "groups"))
 ```
 
 
 Performance comparison (GPTQv2 outperforms GPTQ on GSM8K using 1 fewer bit): 
 
-| Method | Bits   | Arc_Challenge | GSM8K_Platinum_cot |
-|--------|--------|---------------|--------------------|
-| GPTQ   | W4g128 | 49.15         | 48.30              |
-| GPTQv2 | W4g128 | 49.74         | **61.46**          |
-| GPTQ   | W3g128 | 39.93         | 43.26              |
-| GPTQv2 | W3g128 | 41.13         | **50.54**          |
+
+v1:
+
+
+|      Tasks       |Version|     Filter     |n-shot|  Metric   |   |Value |   |Stderr|
+|------------------|------:|----------------|-----:|-----------|---|-----:|---|-----:|
+|arc_challenge|      1|none  |     0|acc     |↑  |0.5000|±  |0.0146|
+|             |       |none  |     0|acc_norm|↑  |0.5128|±  |0.0146|
+|gsm8k_platinum_cot|      3|flexible-extract|     8|exact_match|↑  |0.3995|±  |0.0141|
+|                  |       |strict-match    |     8|exact_match|↑  |0.2548|±  |0.0125|
+
+
+v2:
+
+|      Tasks       |Version|     Filter     |n-shot|  Metric   |   |Value |   |Stderr|
+|------------------|------:|----------------|-----:|-----------|---|-----:|---|-----:|
+|arc_challenge|      1|none  |     0|acc     |↑  |0.5034|±  |0.0146|
+|             |       |none  |     0|acc_norm|↑  |0.5068|±  |0.0146|
+|gsm8k_platinum_cot|      3|flexible-extract|     8|exact_match|↑  |0.7601|±  |0.0123|
+|                  |       |strict-match    |     8|exact_match|↑  |0.5211|±  |0.0144|
+
 
 
 
