@@ -109,7 +109,8 @@ with tempfile.TemporaryDirectory() as tmp_dir:
 Performance comparison (GPTQv2 outperforms GPTQ on GSM8K using 1 fewer bit): 
 
 
-v1:
+v1 ([checkpoints](https://huggingface.co/ModelCloud/GPTQ-v1-Llama-3.1-8B-Instruct
+)):
 
 
 |      Tasks       |Version|     Filter     |n-shot|  Metric   |   |Value |   |Stderr|
@@ -120,7 +121,7 @@ v1:
 |                  |       |strict-match    |     8|exact_match|↑  |0.2548|±  |0.0125|
 
 
-v2:
+v2 ([checkpoints](https://huggingface.co/ModelCloud/GPTQ-v2-Llama-3.1-8B-Instruct)):
 
 |      Tasks       |Version|     Filter     |n-shot|  Metric   |   |Value |   |Stderr|
 |------------------|------:|----------------|-----:|-----------|---|-----:|---|-----:|
