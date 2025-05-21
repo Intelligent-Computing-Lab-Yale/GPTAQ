@@ -11,7 +11,9 @@ The official pytorch implementation of GPTAQ.
   
 Unlike the previous GPTQ method, which independently calibrates each layer, we always match the quantized layer’s output to the exact output in the full-precision model, resulting in a scheme that we call asymmetric calibration. Such a scheme can effectively reduce the quantization error accumulated in previous layers. We analyze this problem using optimal brain compression to derive a close-formed solution. The new solution explicitly minimizes the quantization error as well as the accumulated asymmetry error. Furthermore, we utilize various techniques to parallelize the solution calculation, including channel parallelization, neuron decomposition, and Cholesky reformulation for matrix fusion. As a result, GPTAQ is easy to implement, simply using 20 more lines of code than GPTQ but improving its performance under low-bit quantization.  
   
-  
+## Update: Name change to GPTAQ
+
+We are updating our code to the new name *`GPTAQ`*
 
 ## Update: GPTQv2 is integrated into GPTQModel
 
@@ -138,8 +140,8 @@ v2 ([checkpoints](https://huggingface.co/ModelCloud/GPTQ-v2-Llama-3.1-8B-Instruc
   
 We provide several directories to reproduce the paper results.   
   
-1. [**fake_quant**](./fake_quant) for reproducing QuaRot+GPTQ/GPTQv2   
-2. [**spinquant**](./spinquant) for reproducing SpinQuant+GPTQ/GPTQv2  
+1. [**fake_quant**](./fake_quant) for reproducing QuaRot+GPTQ/GPTAQ   
+2. [**spinquant**](./spinquant) for reproducing SpinQuant+GPTQ/GPTAQ  
 3. [**vit_quant**](./vit_quant) for reproducing vision transformer quantization results  
 
 [//]: # (4. **GPTQModel**, a forked version of GPTQModel to support GPTQv2 to deploy weight-only quantization model  )
@@ -167,10 +169,10 @@ Yuhang Li (*yuhang.li@yale.edu*)
 
 ## Citations  
   
-If you find GPTQv2 useful, please consider giving a star and citation:  
+If you find our work useful, please consider giving a star and citation:  
 ```bibtex  
 @article{li2025gptqv2,
-      title={GPTQv2: Efficient Finetuning-Free Quantization for Asymmetric Calibration}, 
+      title={GPTAQ: Efficient Finetuning-Free Quantization for Asymmetric Calibration}, 
       author={Yuhang Li and Ruokai Yin and Donghyun Lee and Shiting Xiao and Priyadarshini Panda},
       year={2025},
       journal={arXiv preprint arXiv:2504.02692},
