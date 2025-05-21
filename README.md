@@ -1,15 +1,15 @@
 
 <h1 align="center">  
-    <p> GPTQv2: Efficient Finetuning-Free Quantization with Asymmetric Calibration </p>  
+    <p> GPTAQ: Efficient Finetuning-Free Quantization with Asymmetric Calibration [ICML 2025]</p>
 </h1>  
   
 <h1 align="center">   
     <img src="./img/readme_intro.png" width="1000">  
 </h1>  
   
-The official pytorch implementation of GPTQv2.   
+The official pytorch implementation of GPTAQ.   
   
-Unlike the previous GPTQ method, which independently calibrates each layer, we always match the quantized layer’s output to the exact output in the full-precision model, resulting in a scheme that we call asymmetric calibration. Such a scheme can effectively reduce the quantization error accumulated in previous layers. We analyze this problem using optimal brain compression to derive a close-formed solution. The new solution explicitly minimizes the quantization error as well as the accumulated asymmetry error. Furthermore, we utilize various techniques to parallelize the solution calculation, including channel parallelization, neuron decomposition, and Cholesky reformulation for matrix fusion. As a result, GPTQv2 is easy to implement, simply using 20 more lines of code than GPTQ but improving its performance under low-bit quantization.  
+Unlike the previous GPTQ method, which independently calibrates each layer, we always match the quantized layer’s output to the exact output in the full-precision model, resulting in a scheme that we call asymmetric calibration. Such a scheme can effectively reduce the quantization error accumulated in previous layers. We analyze this problem using optimal brain compression to derive a close-formed solution. The new solution explicitly minimizes the quantization error as well as the accumulated asymmetry error. Furthermore, we utilize various techniques to parallelize the solution calculation, including channel parallelization, neuron decomposition, and Cholesky reformulation for matrix fusion. As a result, GPTAQ is easy to implement, simply using 20 more lines of code than GPTQ but improving its performance under low-bit quantization.  
   
   
 
