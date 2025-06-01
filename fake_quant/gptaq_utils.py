@@ -12,7 +12,7 @@ import functools
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False
 
-class GPTQv2:
+class GPTAQ:
 
     def __init__(self, layer):
         self.layer = layer
@@ -150,12 +150,12 @@ class GPTQv2:
 
 
 @torch.no_grad()
-def gptqv2_fwrd(model, dataloader, dev, args):
+def gptaq_fwrd(model, dataloader, dev, args):
     '''
     From GPTQ repo
     TODO: Make this function general to support both OPT and LLaMA models
     '''
-    logging.info('-----GPTQv2 Quantization-----')
+    logging.info('-----GPTAQ Quantization-----')
 
     use_cache = model.config.use_cache
     model.config.use_cache = False
@@ -241,7 +241,7 @@ def gptqv2_fwrd(model, dataloader, dev, args):
                     continue
                 if args.int8_down_proj and 'down_proj' in name:
                     layer_weight_bits = 8
-                gptq[name] = GPTQv2(subset[name])
+                gptq[name] = GPTAQ(subset[name])
                 gptq[name].quantizer = quant_utils.WeightQuantizer()
                 gptq[name].quantizer.configure(
                     layer_weight_bits, perchannel=True, sym=layer_weight_sym, mse=args.w_clip
@@ -289,6 +289,6 @@ def gptqv2_fwrd(model, dataloader, dev, args):
 
     model.config.use_cache = use_cache
     utils.cleanup_memory(verbos=True)
-    logging.info('-----GPTQv2 Quantization Done-----\n')
+    logging.info('-----GPTAQ Quantization Done-----\n')
 
     return quantizers

@@ -3,18 +3,19 @@ import time
 import tqdm
 import torch
 import torch.nn as nn
+import utils
+import quant_utils
+import timm
 import logging
 import functools
-
-from utils import quant_utils, utils
-
 
 torch.backends.cuda.matmul.allow_tf32 = False
 torch.backends.cudnn.allow_tf32 = False
 
-class GPTQv2:
 
-    def __init__(self, layer):
+class GPTAQ:
+
+    def __init__(self, layer, cls_token=0):
         self.layer = layer
         self.dev = self.layer.weight.device
         W = layer.weight.data.clone()
@@ -24,13 +25,14 @@ class GPTQv2:
         self.dXXT = torch.zeros((self.columns, self.columns), device=self.dev)
         self.nsamples = 0
         self.fp_inp = []
+        self.cls_token = cls_token
 
     def add_batch(self, inp, out):
-
         if len(inp.shape) == 2:
             inp = inp.unsqueeze(0)
         tmp = inp.shape[0]
         if len(inp.shape) == 3:
+            inp = inp[:, self.cls_token:, :]
             inp = inp.reshape((-1, inp.shape[-1]))
 
         inp = inp.t()
@@ -38,9 +40,11 @@ class GPTQv2:
         self.H *= self.nsamples / (self.nsamples + tmp)
         self.dXXT *= self.nsamples / (self.nsamples + tmp)
         self.nsamples += tmp
+        # inp = inp.float()
         inp = math.sqrt(2 / self.nsamples) * inp.float()
+        # self.H += 2 / self.nsamples * inp.matmul(inp.t())
         self.H += inp.matmul(inp.t())
-        dX = self.fp_inp[0].float() * math.sqrt(2 / self.nsamples) - inp
+        dX = self.fp_inp[0].float().to(self.dev) * math.sqrt(2 / self.nsamples) - inp
         self.dXXT += dX.matmul(inp.t())
 
         del self.fp_inp[0]
@@ -144,7 +148,6 @@ class GPTQv2:
         self.H = None
         self.Losses = None
         self.Trace = None
-        self.dXXT = None
         torch.cuda.empty_cache()
         utils.cleanup_memory(verbos=False)
 
@@ -153,17 +156,19 @@ class FPInputsCache:
     """
     class for saving the full-precision output in each layer.
     """
-    def __init__(self, sequential):
+    def __init__(self, sequential, cls_token=0):
         self.fp_cache = {}
         self.names = sequential[0]+sequential[1]+sequential[2]+sequential[3]
         print(self.names)
         for name in self.names:
             self.fp_cache[name] = []
         self.handles = []
+        self.cls_token = cls_token
 
     def cache_fp_input(self, m, inp, out, name):
-        inp = inp[0].detach()
+        inp = inp[0].detach().cpu()
         if len(inp.shape) == 3:
+            inp = inp[:, self.cls_token:, :]
             inp = inp.reshape((-1, inp.shape[-1]))
         self.fp_cache[name] += [inp.t()]
 
@@ -187,80 +192,77 @@ class FPInputsCache:
 
 
 @torch.no_grad()
-def gptqv2_fwrd(model, dataloader, dev, args):
+def gptaq_fwrd(model, calib_data, dev, args):
     '''
     From GPTQ repo
     TODO: Make this function general to support both OPT and LLaMA models
     '''
     print('-----GPTQv2 Quantization-----')
 
-    use_cache = model.config.use_cache
-    model.config.use_cache = False
-    layers = model.model.layers
+    layers = model.blocks
 
-    model.model.embed_tokens = model.model.embed_tokens.to(dev)
-    model.model.norm = model.model.norm.to(dev)
-    model.model.rotary_emb = model.model.rotary_emb.to(dev)
-
-    layers[0] = layers[0].to(dev)
-
-    dtype = next(iter(model.parameters())).dtype
-    inps = torch.zeros(
-        (args.nsamples, 2048, model.config.hidden_size), dtype=dtype, device=dev
-    )
-    cache = {'i': 0, 'attention_mask': None}
+    model = model.cuda()
 
     class Catcher(nn.Module):
         def __init__(self, module):
             super().__init__()
             self.module = module
+            self.fwd_kwargs = {}
+            self.inps = None
 
         def forward(self, inp, **kwargs):
-            inps[cache['i']] = inp
-            cache['i'] += 1
-            cache['attention_mask'] = kwargs['attention_mask']
-            cache['position_ids'] = kwargs['position_ids']
+            self.inps = inp.data.clone()
+            self.fwd_kwargs = kwargs
+            print('data collected')
             raise ValueError
 
     layers[0] = Catcher(layers[0])
-    for batch in dataloader:
-        try:
-            model(batch[0].to(dev))
-        except ValueError:
-            pass
+    try:
+        model(calib_data.to(dev))
+    except ValueError:
+        pass
+
+    inps = layers[0].inps
+    fwd_kwargs = layers[0].fwd_kwargs
+
     layers[0] = layers[0].module
     layers[0] = layers[0].cpu()
+    model = model.cpu()
 
-    model.model.embed_tokens = model.model.embed_tokens.cpu()
-    model.model.norm = model.model.norm.cpu()
-    model.model.rotary_emb = model.model.rotary_emb.cpu()
+    del calib_data
     torch.cuda.empty_cache()
 
     outs = torch.zeros_like(inps)
 
-    attention_mask = cache['attention_mask']
-    position_ids = cache['position_ids']
-
     quantizers = {}
-    sequential = [
-        ['self_attn.k_proj.module', 'self_attn.v_proj.module', 'self_attn.q_proj.module'],
-        ['self_attn.o_proj.module'],
-        ['mlp.up_proj.module', 'mlp.gate_proj.module'],
-        ['mlp.down_proj.module']
-    ]
+    if isinstance(model, timm.models.Eva):
+        sequential = [
+            ['attn.q_proj.module', 'attn.k_proj.module', 'attn.v_proj.module'],
+            ['attn.proj.module'],
+            ['mlp.fc1_g.module', 'mlp.fc1_x.module'],
+            ['mlp.fc2.module']
+        ]
+    elif isinstance(model, timm.models.VisionTransformer):
+        sequential = [
+            ['attn.qkv.module'],
+            ['attn.proj.module'],
+            ['mlp.fc1.module'],
+            ['mlp.fc2.module']
+        ]
+    else:
+        raise NotImplementedError
 
-    fp_inputs_cache = FPInputsCache(sequential)
+    fp_inputs_cache = FPInputsCache(sequential, cls_token=0)
     fp_inps = inps.clone()
 
     for i in range(len(layers)):
         print(f'\nLayer {i}:', flush=True, end=' ')
         layer = layers[i].to(dev)
         full = quant_utils.find_qlayers(layer, layers=[torch.nn.Linear])
+
         bits_config = quant_utils.disable_act_quant(layer)
         fp_inputs_cache.add_hook(full)
-
-        for j in range(args.nsamples):
-            fp_inps[j] = layer(fp_inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
+        fp_inps = layer(fp_inps, **fwd_kwargs)
         fp_inputs_cache.clear_hook()
         quant_utils.enable_act_quant(layer, bits_config)
 
@@ -272,12 +274,10 @@ def gptqv2_fwrd(model, dataloader, dev, args):
                 print(f'{name}', end='  ', flush=True)
                 layer_weight_bits = args.w_bits
                 layer_weight_sym = not (args.w_asym)
-                if 'lm_head' in name:
+                if 'head' in name:
                     layer_weight_bits = 16
                     continue
-                if args.int8_down_proj and 'down_proj' in name:
-                    layer_weight_bits = 8
-                gptq[name] = GPTQv2(subset[name])
+                gptq[name] = GPTAQ(subset[name], cls_token=0)
                 gptq[name].quantizer = quant_utils.WeightQuantizer()
                 gptq[name].quantizer.configure(
                     layer_weight_bits, perchannel=True, sym=layer_weight_sym, mse=args.w_clip
@@ -290,18 +290,12 @@ def gptqv2_fwrd(model, dataloader, dev, args):
 
                 return tmp
 
-            first_module_name = list(subset.keys())[0]
-            handle = subset[first_module_name].register_forward_hook(add_batch(first_module_name))
-
-            for j in range(args.nsamples):
-                outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
-            handle.remove()
-
-            # copy H and dXXT
+            handles = []
             for name in subset:
-                if name != first_module_name:
-                    gptq[name].H = gptq[first_module_name].H
-                    gptq[name].dXXT = gptq[first_module_name].dXXT
+                handles.append(subset[name].register_forward_hook(add_batch(name)))
+            outs = layer(inps, **fwd_kwargs)  # forward calibration data
+            for h in handles:
+                h.remove()
 
             for name in subset:
                 layer_w_groupsize = args.w_groupsize
@@ -311,8 +305,7 @@ def gptqv2_fwrd(model, dataloader, dev, args):
                 quantizers['model.layers.%d.%s' % (i, name)] = gptq[name].quantizer
                 gptq[name].free()
 
-        for j in range(args.nsamples):
-            outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
+        outs = layer(inps, **fwd_kwargs)  # forward calibration data
 
         fp_inputs_cache.clear_cache()
         layers[i] = layer.cpu()
@@ -322,7 +315,6 @@ def gptqv2_fwrd(model, dataloader, dev, args):
 
         inps, outs = outs, inps
 
-    model.config.use_cache = use_cache
     utils.cleanup_memory(verbos=True)
     print('-----GPTQv2 Quantization Done-----\n')
     return quantizers

@@ -17,6 +17,6 @@ python main.py --model meta-llama/Meta-Llama-3-8B  \
  --a_clip_ratio 0.9 \
  --k_clip_ratio 0.95 \
  --v_clip_ratio 0.95 \
- --use_v2 \
+ --asym_calibrate \
  --enable_aq_calibration \
- --rotate \
+ --rotate

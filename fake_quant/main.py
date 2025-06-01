@@ -6,7 +6,7 @@ import transformers
 import quant_utils
 import rotation_utils
 import gptq_utils
-import gptqv2_utils
+import gptaq_utils
 import eval_utils
 import hadamard_utils
 
@@ -116,8 +116,8 @@ def main():
                 seed=args.seed, model=args.model,
                 seqlen=model.seqlen, eval_mode=False
             )
-            if args.use_v2:
-                quantizers = gptqv2_utils.gptqv2_fwrd(model, trainloader, utils.DEV, args)
+            if args.asym_calibrate:
+                quantizers = gptaq_utils.gptaq_fwrd(model, trainloader, utils.DEV, args)
                 save_dict["w_quantizers"] = quantizers
             else:
                 quantizers = gptq_utils.gptq_fwrd(model, trainloader, utils.DEV, args)

@@ -109,8 +109,8 @@ def parser_gen():
                         help='Percent of the average Hessian diagonal to use for dampening.')
     parser.add_argument('--act_order', action=argparse.BooleanOptionalAction, default=False,
                         help='act-order in GPTQ')
-    parser.add_argument('--use_v2', action=argparse.BooleanOptionalAction, default=False,
-                        help='whether to use GPTQv2')
+    parser.add_argument('--asym_calibrate', action=argparse.BooleanOptionalAction, default=False,
+                        help='whether to use GPTAQ')
 
     # Save/Load Quantized Model Arguments
     parser.add_argument('--load_qmodel_path', type=str, default=None,

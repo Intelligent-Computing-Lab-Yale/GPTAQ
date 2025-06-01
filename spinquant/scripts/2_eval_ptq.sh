@@ -30,5 +30,5 @@ torchrun --nnodes=1 --nproc_per_node=1 ptq.py \
 --v_groupsize 128 \
 --rotate \
 --optimized_rotation_path "ckpts/8B_W16A4KV16_lr_1.5_seed_0/R.bin" \
---use_v2 \ 
+--asym_calibrate \
 --enable_ap_calibration \

@@ -154,10 +154,10 @@ def parser_gen():
         help="act-order in GPTQ",
     )
     parser.add_argument(
-        "--use_v2",
+        "--asym_calibrate",
         action=argparse.BooleanOptionalAction,
         default=False,
-        help="Whether to use GPTQv2",
+        help="Whether to use GPTAQ",
     )
 
 

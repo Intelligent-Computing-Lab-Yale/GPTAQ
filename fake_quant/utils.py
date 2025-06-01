@@ -125,11 +125,11 @@ def parser_gen():
     parser.add_argument('--percdamp', type=float, default=.01,
                         help='Percent of the average Hessian diagonal to use for dampening.')
     parser.add_argument('--act_order', action=argparse.BooleanOptionalAction, default=False,
-                        help='act-order in GPTQ(v2)')
+                        help='act-order in GPT(A)Q')
     parser.add_argument('--static_groups', action=argparse.BooleanOptionalAction, default=False,
-                        help='static groups in GPTQ(v2)')
-    parser.add_argument('--use_v2', action=argparse.BooleanOptionalAction, default=False,
-                        help='enable GPTQv2 asymmetric calibration')
+                        help='static groups in GPT(A)Q')
+    parser.add_argument('--asym_calibrate', action=argparse.BooleanOptionalAction, default=False,
+                        help='enable GPTAQ asymmetric calibration')
 
     # General Quantization Arguments
     parser.add_argument('--int8_down_proj', action=argparse.BooleanOptionalAction, default=False,
